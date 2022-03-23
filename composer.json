@@ -1,0 +1,50 @@
+{
+    "name": "antaresbr/laravel-jobx",
+    "description": "A custom job package based on Laravel Framework",
+    "homepage": "https://github.com/antaresbr/laravel-jobx",
+    "keywords": [
+        "php",
+        "laravel",
+        "job"
+    ],
+    "authors": [
+        {
+            "name": "Eduardo Guerra",
+            "email": "eduardo.antares@gmail.com",
+            "role": "Developer"
+        }
+    ],
+    "license": "MIT",
+    "require": {
+        "php": ">=8",
+        "antaresbr/arrayhandler": "*",
+        "antaresbr/laravel-http": "*",
+        "antaresbr/laravel-socket": "*",
+        "antaresbr/options": "*",
+        "antaresbr/stringhandler": "*",
+        "nesbot/carbon": "*"
+    },
+    "autoload": {
+        "files": [
+            "support/helpers.php"
+        ],
+        "psr-4": {
+            "Antares\\Jobx\\": "src/"
+        }
+    },
+    "require-dev": {
+        "orchestra/testbench": "^6"
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Antares\\Jobx\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Antares\\Jobx\\Providers\\JobxServiceProvider"
+            ]
+        }
+    }
+}
