@@ -14,7 +14,9 @@ class JobxServiceProvider extends ServiceProvider
      */
     public function register()
     {
-        //
+        $this->commands([
+            \Antares\Jobx\Console\Commands\JobxWorker::class,
+        ]);
     }
 
     /**
@@ -27,7 +29,6 @@ class JobxServiceProvider extends ServiceProvider
         $this->loadTranslationsFrom(ai_jobx_path('lang'), 'jobx');
 
         Queue::createPayloadUsing(function ($connection, $queue, $payload) {
-            // $payload contains all of the job information, including the supplied data.
             $payload['created_at'] = Carbon::now()->format('Y-m-d H:i:s.u');
             return $payload;
         });

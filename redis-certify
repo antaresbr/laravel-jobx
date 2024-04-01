@@ -1,0 +1,68 @@
+#!/bin/bash
+
+function error() {
+    echo ""
+    echo "ERROR | $@"
+    echo ""
+    exit 1
+}
+
+
+function getSudoCredentials() {
+    echo ""
+    echo "Get SUDO credentials"
+    sudo ls -alF > /dev/null
+    [ $? -eq 0 ] || error "Fail to get SUDO credentials"
+}
+
+
+function getRedisServer() {
+    REDIS_SERVER=$(which redis-server)
+}
+
+
+function getRedisCli() {
+    REDIS_CLI=$(which redis-cli)
+    [ -n "${REDIS_CLI}" ] || error "redis-cli not found"
+}
+
+
+function installRedis() {
+    local sourceFile="/etc/os-release"
+    [ -f "${sourceFile}" ] || error "File not found: ${sourceFile}"
+    source "${sourceFile}"
+    [ $? -eq 0 ] || error "Fail to load file: ${sourceFile}"
+
+    if [ "${ID_LIKE}" == "debian" ]
+    then
+        getSudoCredentials
+        sudo apt update && sudo apt install -y redis redis-tools
+        [ $? -eq 0 ] || error "Fail to install REDIS"
+        return 0
+    fi
+
+    error "Don't know how to install REDIS"
+}
+
+
+function redisTest() {
+    [ -n "${REDIS_CLI}" ] || getRedisCli
+    ${REDIS_CLI} ping &> /dev/null
+}
+
+
+getRedisServer
+if [ -z "${REDIS_SERVER}" ]
+then
+    installRedis
+    getRedisServer
+    [ -n "${REDIS_SERVER}" ] || error "Fail to get redis-server"
+fi
+
+redisTest
+if [ $? -ne 0 ]
+then
+    ${REDIS_SERVER} --daemonize yes
+    [ $? -eq 0 ] || error "Fail to start REDIS"
+    redisTest || error "Fail to ping REDIS"
+fi

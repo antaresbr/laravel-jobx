@@ -7,7 +7,6 @@ use Antares\Socket\Socket;
 use Antares\Support\Arr;
 use Antares\Support\Options;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Foundation\Bus\PendingDispatch;
@@ -54,7 +53,7 @@ class Jobx implements ShouldQueue
             'class' => ['type' => 'string', 'required' => true],
             'method' => ['type' => 'string', 'required' => true],
             'params' => ['type' => 'array', 'default' => []],
-            'env' => ['type' => 'string', 'default' => $_ENV['APP_ENV_ID']],
+            'env' => ['type' => 'string', 'default' => env('APP_ENV_ID')],
             'connection' => ['type' => 'string', 'default' => ''],
             'queue' => ['type' => 'string', 'default' => ''],
             'socket' => ['type' => 'string', 'default' => ''],
@@ -62,10 +61,11 @@ class Jobx implements ShouldQueue
 
         !empty($opt->id) or ($opt->id = Uuid::uuid4()->toString());
 
-        !empty($opt->queue) or ($opt->queue = $opt->env);
-        $this->onQueue($opt->queue);
+        !empty($opt->connection) or ($opt->connection = config('queue.default'));
+        $this->onConnection($opt->connection);
 
-        empty($opt->connection) or ($this->onConnection($opt->connection));
+        !empty($opt->queue) or ($opt->queue = config('queue.connections.'.$opt->connection.'.queue'));
+        $this->onQueue($opt->queue);
 
         $opt->socket = Socket::make([
             'prefix' => 'job',

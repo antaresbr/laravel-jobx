@@ -2,58 +2,30 @@
 namespace Antares\Jobx\Tests\Feature;
 
 use Antares\Jobx\Jobx;
+use Antares\Jobx\Tests\AsyncJob;
 use Antares\Jobx\Tests\TestCase;
 use Antares\Socket\Socket;
-use Antares\Support\Arr;
+use Illuminate\Support\Facades\Queue;
 
 class JobxTest extends TestCase
 {
-    public function doTestAction($params)
-    {
-        $monitor = [];
-        $monitor[] = '.start()';
-        $monitor[] = 'inConsole  : ' . app()->runningInConsole() ? 'true' : 'false';
-        $monitor[] = '__CLASS__  : ' . __CLASS__;
-        $monitor[] = '__METHOD__ : ' . __FUNCTION__;
-
-        $monitor[] = 'socket : ' . Arr::get($params, '_job_.socket', '_n/a_');
-
-        $socket = Socket::createFromId(Arr::get($params, '_job_.socket'));
-        Socket::socketStart($socket, 'JobxTest::doTestAction()', 'Asynchronous process running');
-
-        $monitor[] = '.processing';
-        $steps = Arr::get($params, 'steps', 5);
-        Socket::socketProgress($socket, true, $steps);
-        for ($i = 1; $i <= $steps; $i++) {
-            $monitor[] = "  step ..{$i}..";
-            Socket::socketProgressIncrease($socket);
-        }
-        $monitor[] = '.end()';
-
-        Socket::socketFinish($socket, 'Process completed successfully!', null, ['monitor' => $monitor]);
-    }
-
     /** @test */
-    public function dispath_from_options()
+    public function dispath_async_job()
     {
-        $job = Jobx::dispatchFomOptions([
-            'user' => 1,
-            'class' => get_class($this),
-            'method' => 'doTestAction',
-            'params' => [
-                'load' => 'explosive!',
-                'steps' => 15,
-            ],
+        $connection = Queue::getConnectionName();
+        $queue = config('queue.connections.'.$connection.'.queue');
+
+        $this->artisan('queue:clear', ['connection' => $connection, '--queue' => $queue]);
+
+        $job = AsyncJob::make([
+            'params' => ['description' => 'JobxTest async job'],
+            'connection' => $connection,
+            'queue' => $queue,
         ]);
-        if ($job) {
-            $socket = Socket::createFromId($job->get('socket'));
-            $this->assertInstanceOf(Socket::class, $socket);
-
-            $this->filesToCelanup[] = Socket::fileName($socket->get('id'));
-
-            $this->assertEquals(15, $socket->get('progress.position'));
-        }
-
         $this->assertInstanceOf(Jobx::class, $job);
+        $this->assertEquals(1, Queue::size($queue));
+        
+        $socket = Socket::createFromId($job->get('socket'));
+        $this->filesToCelanup[] = Socket::fileName($socket->get('id'));
     }
 }

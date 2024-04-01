@@ -35,7 +35,7 @@ class TestCase extends OrchestraTestCase
      */
     protected function getEnvironmentSetUp($app)
     {
-        $_ENV['APP_ENV_ID'] = 'test';
+        $_ENV['APP_ENV_ID'] = $_ENV['APP_ENV'] ?? 'testing';
     }
 
     protected $filesToCelanup = [];

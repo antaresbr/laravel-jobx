@@ -24,7 +24,12 @@
     <server name="DB_CONNECTION" value="sqlite"/>
     <server name="DB_DATABASE" value=":memory:"/>
     <server name="MAIL_MAILER" value="array"/>
-    <server name="QUEUE_CONNECTION" value="sync"/>
+    <server name="QUEUE_CONNECTION" value="redis"/>
+    <server name="REDIS_HOST" value="localhost"/>
+    <server name="REDIS_PASSWORD" value="null"/>
+    <server name="REDIS_PORT" value="6379"/>
+    <server name="REDIS_PREFIX" value="phpunit_"/>
+    <server name="REDIS_QUEUE" value="debug"/>
     <server name="SESSION_DRIVER" value="array"/>
     <server name="TELESCOPE_ENABLED" value="false"/>
   </php>

@@ -22,7 +22,8 @@
         "antaresbr/laravel-socket": "*",
         "antaresbr/options": "*",
         "antaresbr/stringhandler": "*",
-        "nesbot/carbon": "*"
+        "nesbot/carbon": "*",
+        "predis/predis": "^2.2"
     },
     "autoload": {
         "files": [

@@ -1,7 +1,17 @@
 #!/bin/bash
 
+function error() {
+    echo ""
+    echo "ERROR | $@"
+    echo ""
+    exit 1
+}
+
 params=$@
 [ -z "$params" ] && params="tests"
 
-./vendor/bin/phpunit --colors --testdox $params
+./redis-certify
+ec="$?"
+[ "${ec}" -eq 0 ] || exit $ec
 
+./vendor/bin/phpunit --colors --testdox $params
