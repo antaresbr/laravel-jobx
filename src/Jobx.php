@@ -6,6 +6,7 @@ use Antares\Jobx\Http\JobxHttpErrors;
 use Antares\Socket\Socket;
 use Antares\Support\Arr;
 use Antares\Support\Options;
+use DateTime;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -82,15 +83,17 @@ class Jobx implements ShouldQueue
      */
     public function handle()
     {
-        Log::info(
-            'Jobx::handle(' . $this->options['id'] . '):start:[' .
-            'env: ' . $this->options['env'] . ', ' .
-            'connection: ' . $this->options['connection'] . ', ' .
-            'queue: ' . $this->options['queue'] . ', ' .
-            'socket: ' . $this->options['socket'] . ', ' .
-            'class: ' . $this->options['class'] . ', ' .
-            'method: ' . $this->options['method'] . ']'
-        );
+        $started_at = microtime(true);
+        Log::info(json_encode([
+            'job-id' => $this->options['id'],
+            'env' => $this->options['env'],
+            'connection' => $this->options['connection'],
+            'queue' => $this->options['queue'],
+            'socket' => $this->options['socket'],
+            'class' => $this->options['class'],
+            'method' => $this->options['method'],
+            'started_at' => DateTime::createFromFormat('U.u', $started_at)->format('m-d-Y H:i:s.u'),
+        ]));
 
         $params = array_merge(
             [
@@ -107,7 +110,17 @@ class Jobx implements ShouldQueue
         $o = new ($this->options['class']);
         $o->{$this->options['method']}($params);
 
-        Log::info('Jobx::handle(' . $this->options['id'] . '):end');
+        $socket = !empty($this->options['socket']) ? Socket::createFromId($this->options['socket']) : null;
+        if ($socket and !$socket->get('finished')) {
+            $socket->finish(true);
+        }
+
+        $finished_at = microtime(true);
+        Log::info(json_encode([
+            'job-id' => $this->options['id'],
+            'finished_at' => DateTime::createFromFormat('U.u', $started_at)->format('m-d-Y H:i:s.u'),
+            'execution_time' => number_format($finished_at - $started_at, 3),
+        ]));
     }
 
     /**

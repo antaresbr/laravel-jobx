@@ -5,8 +5,8 @@ use Antares\Jobx\Jobx;
 use Exception;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
-use Illuminate\Support\Str;
 
 class JobxWorker extends Command
 {
@@ -82,6 +82,20 @@ class JobxWorker extends Command
         $sleep = $this->option('sleep');
         $rest = $this->option('rest');
 
+        Log::info(json_encode([
+            'jobx-worker' => $this->worker,
+            'status' => 'started',
+            'params' => [
+                'connection' => $this->argument('connection'),
+                'queue' => $this->option('queue'),
+                'once' => $once,
+                'stop-when-empty' => $stopWhenEmpty,
+                'max-jobs' => $maxJobs,
+                'sleep' => $sleep,
+                'rest' => $rest,
+            ],
+        ]));
+
         $jobs = 0;
         $done = false;
 
@@ -111,6 +125,13 @@ class JobxWorker extends Command
                 sleep($sleep);
             }
         }
+
+        Log::info(json_encode([
+            'jobx-worker' => $this->worker,
+            'status' => 'finished',
+            'emptyLoop' => $emptyLoop,
+            'jobs' => $jobs,
+        ]));
     }
 
     /**
@@ -123,7 +144,9 @@ class JobxWorker extends Command
         $job = null;
         if (Queue::size($queue) > 0) {
             $job = Queue::pop($queue);
-            $job->delete();
+            if ($job) {
+                $job->delete();
+            }
         }
         return $job;
     }
@@ -136,6 +159,7 @@ class JobxWorker extends Command
      */
     protected function push($job) {
         $infos = [
+            'job-id' => '',
             'connection' => '',
             'env' => '',
             'queue' => '',
@@ -144,6 +168,7 @@ class JobxWorker extends Command
             $payload = $job->Payload();
             $command = unserialize($payload['data']['command']);
 
+            $infos['job-id'] = $command->get('id');
             $infos['connection'] = $command->connection;
             if (is_a($command, Jobx::class)) {
                 $infos['env'] = $command->get('env');
@@ -162,6 +187,10 @@ class JobxWorker extends Command
      * @return int
      */
     protected function workOn($infos) {
+        Log::info(json_encode([
+            'job-id' => $infos['job-id'],
+            'jobx-worker' => $this->worker,
+        ]));
         $params = [];
         !array_key_exists('connection', $infos) or $params['connection'] = $infos['connection'];
         !array_key_exists('env', $infos) or $params['--env'] = $infos['env'];
