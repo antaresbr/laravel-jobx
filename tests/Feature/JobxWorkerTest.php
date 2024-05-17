@@ -2,17 +2,16 @@
 namespace Antares\Jobx\Tests\Feature;
 
 use Antares\Jobx\Jobx;
-use Antares\Jobx\JobxHandler;
 use Antares\Jobx\Tests\AsyncJob;
 use Antares\Jobx\Tests\TestCase;
 use Antares\Socket\Socket;
-use Antares\Support\Arr;
-use Illuminate\Support\Facades\Artisan;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
-use Illuminate\Support\Facades\Redis;
 
 class JobxWorkerTest extends TestCase
 {
+    use RefreshDatabase;
+
     protected function addJob($connection, $queue, $description, $count) {
         $job = AsyncJob::make([
             'params' => ['description' => "---[ {$description} ]---"],

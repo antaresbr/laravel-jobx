@@ -17,13 +17,14 @@
     "license": "MIT",
     "require": {
         "php": ">=8",
-        "antaresbr/arrayhandler": "*",
+        "antaresbr/foundation": "*",
         "antaresbr/laravel-http": "*",
+        "antaresbr/laravel-multienv": "*",
         "antaresbr/laravel-socket": "*",
-        "antaresbr/options": "*",
-        "antaresbr/stringhandler": "*",
+        "doctrine/dbal": "^2.10",
         "nesbot/carbon": "*",
-        "predis/predis": "^2.2"
+        "predis/predis": "^2.2",
+        "symfony/process": "*"
     },
     "autoload": {
         "files": [
@@ -38,6 +39,7 @@
     },
     "autoload-dev": {
         "psr-4": {
+            "Antares\\Jobx\\Database\\Factories\\": "database/factories",
             "Antares\\Jobx\\Tests\\": "tests/"
         }
     },

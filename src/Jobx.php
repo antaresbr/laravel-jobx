@@ -3,9 +3,10 @@ namespace Antares\Jobx;
 
 use Antares\Http\JsonResponse;
 use Antares\Jobx\Http\JobxHttpErrors;
+use Antares\Jobx\Models\JobxModel;
 use Antares\Socket\Socket;
-use Antares\Support\Arr;
-use Antares\Support\Options;
+use Antares\Foundation\Arr;
+use Antares\Foundation\Options\Options;
 use DateTime;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -19,6 +20,20 @@ use Ramsey\Uuid\Uuid;
 class Jobx implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+
+    /**
+     * The number of seconds the job can run before timing out.
+     *
+     * @var int
+     */
+    public $timeout;
+
+    /**
+     * Indicate if the job should be marked as failed on timeout.
+     *
+     * @var bool
+     */
+    public $failOnTimeout = true;
 
     /**
      * Job options
@@ -58,6 +73,7 @@ class Jobx implements ShouldQueue
             'connection' => ['type' => 'string', 'default' => ''],
             'queue' => ['type' => 'string', 'default' => ''],
             'socket' => ['type' => 'string', 'default' => ''],
+            'timeout' => ['type' => 'integer', 'default' => (int)config('queue.job_timeout', 60)],
         ])->validate();
 
         !empty($opt->id) or ($opt->id = Uuid::uuid4()->toString());
@@ -68,12 +84,18 @@ class Jobx implements ShouldQueue
         !empty($opt->queue) or ($opt->queue = config('queue.connections.'.$opt->connection.'.queue'));
         $this->onQueue($opt->queue);
 
-        $opt->socket = Socket::make([
+        $socket = Socket::make([
             'prefix' => 'job',
             'user' => $opt->user,
-        ])->get('id');
+            'status' => 'created',
+        ]);
+        $opt->socket = $socket->get('id');
 
         $this->options = $opt->all(true);
+
+        $this->timeout = $this->options['timeout'];
+
+        (new JobxModel())->syncWithSocket($socket);
     }
 
     /**
@@ -92,8 +114,12 @@ class Jobx implements ShouldQueue
             'socket' => $this->options['socket'],
             'class' => $this->options['class'],
             'method' => $this->options['method'],
+            'user' => $this->options['user'],
             'started_at' => DateTime::createFromFormat('U.u', $started_at)->format('m-d-Y H:i:s.u'),
         ]));
+
+        $socket = Socket::createFromId($this->options['socket'])->status('handling', true);
+        $dbjob = JobxModel::fromSocket($socket);
 
         $params = array_merge(
             [
@@ -102,18 +128,22 @@ class Jobx implements ShouldQueue
                     'connection' => $this->options['connection'],
                     'queue' => $this->options['queue'],
                     'socket' => $this->options['socket'],
+                    'user' => $this->options['user'],
                 ]
             ],
             $this->options['params']
         );
 
         $o = new ($this->options['class']);
+        $socket->refresh()->status('running', true);
+        $dbjob->syncWithSocket($socket);
         $o->{$this->options['method']}($params);
 
-        $socket = !empty($this->options['socket']) ? Socket::createFromId($this->options['socket']) : null;
-        if ($socket and !$socket->get('finished')) {
+        $socket->refresh();
+        if (!$socket->get('finished')) {
             $socket->finish(true);
         }
+        $dbjob->syncWithSocket($socket);
 
         $finished_at = microtime(true);
         Log::info(json_encode([
@@ -146,7 +176,11 @@ class Jobx implements ShouldQueue
     {
         $job = static::getDispatchedJob(static::dispatch($options));
         if ($job) {
-            Socket::socketStatus(Socket::createFromId($job->get('socket')), 'queued');
+            $socket = Socket::socketStatus(Socket::createFromId($job->get('socket')), 'queued');
+            $dbjob = JobxModel::where('job_id', $socket->get('id'))->first();
+            if ($dbjob) {
+                $dbjob->syncWithSocket($socket);
+            }
         }
         return $job;
     }

@@ -2,11 +2,15 @@
 namespace Antares\Jobx\Console\Commands;
 
 use Antares\Jobx\Jobx;
+use Antares\Foundation\CurrentEnv;
+use Antares\Multienv\BootstrapEnv;
 use Exception;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
+use Symfony\Component\Process\Process;
+use Symfony\Component\Process\Exception\ProcessFailedException;
 
 class JobxWorker extends Command
 {
@@ -50,6 +54,13 @@ class JobxWorker extends Command
     protected $queues;
 
     /**
+     * The worker instance environment variables
+     *
+     * @var CurrentEnv
+     */
+    protected $envVars;
+
+    /**
      * Create a new command instance.
      *
      * @return void
@@ -75,6 +86,9 @@ class JobxWorker extends Command
         if (empty($this->queues)) {
             throw new Exception('No queue supplied');
         }
+
+        //-- save worker environment variables
+        $this->envVars = CurrentEnv::make();
 
         $once = $this->option('once');
         $stopWhenEmpty = $this->option('stop-when-empty');
@@ -163,6 +177,7 @@ class JobxWorker extends Command
             'connection' => '',
             'env' => '',
             'queue' => '',
+            'timeout' => null,
         ];
         if ($job) {
             $payload = $job->Payload();
@@ -174,6 +189,7 @@ class JobxWorker extends Command
                 $infos['env'] = $command->get('env');
             }
             $infos['queue'] = "jobx-{$this->worker}-" . (!empty($infos['env']) ? $infos['env'] : 'default');
+            $infos['timeout'] = (int)(property_exists($command, 'timeout') ? $command->timeout : config('queue.job_timeout', 60));
 
             Queue::pushRaw($job->getRawBody(), $infos['queue']);
         }
@@ -190,15 +206,48 @@ class JobxWorker extends Command
         Log::info(json_encode([
             'job-id' => $infos['job-id'],
             'jobx-worker' => $this->worker,
+            'jobx-queue' => $infos['queue'],
+            'jobx-timeout' => $infos['timeout'],
         ]));
-        $params = [];
-        !array_key_exists('connection', $infos) or $params['connection'] = $infos['connection'];
-        !array_key_exists('env', $infos) or $params['--env'] = $infos['env'];
-        !array_key_exists('queue', $infos) or $params['--queue'] = $infos['queue'];
-        $params['--memory'] = $this->option('memory');
-        $params['--once'] = true;
-        $params['--stop-when-empty'] = true;
 
-        return Artisan::call('queue:work', $params);
+        if (env('APP_ENV') == 'testing') {
+            $params = [];
+            !array_key_exists('connection', $infos) or $params['connection'] = $infos['connection'];
+            !array_key_exists('env', $infos) or $params['--env'] = $infos['env'];
+            !array_key_exists('queue', $infos) or $params['--queue'] = $infos['queue'];
+            if ($infos['timeout'] > 0) {
+                $params['--timeout'] = $infos['timeout'];
+            }
+            $params['--memory'] = $this->option('memory');
+            $params['--once'] = true;
+            $params['--stop-when-empty'] = true;
+    
+            return Artisan::call('queue:work', $params);
+        }
+
+        BootstrapEnv::singleton()->resetToThis();
+        
+        $cmd = ['php', 'artisan', 'queue:work'];
+        !array_key_exists('connection', $infos) or array_push($cmd, $infos['connection']);
+        !array_key_exists('env', $infos) or array_push($cmd, "--env={$infos['env']}");
+        !array_key_exists('queue', $infos) or array_push($cmd, "--queue={$infos['queue']}");
+        if ($infos['timeout'] > 0) {
+            array_push($cmd, "--timeout={$infos['timeout']}");
+        }
+        array_push($cmd, "--memory={$this->option('memory')}");
+        array_push($cmd, '--once');
+        array_push($cmd, '--stop-when-empty');
+
+        $process = New Process($cmd, null, []);
+        $process->setTimeout($infos['timeout']);
+        $process->run();
+
+        if (!$process->isSuccessful()) {
+            throw new ProcessFailedException($process);
+        }
+
+        $this->envVars->resetToThis();
+
+        return 0;
     }
 }

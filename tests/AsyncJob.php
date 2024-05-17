@@ -3,7 +3,7 @@ namespace Antares\Jobx\Tests;
 
 use Antares\Jobx\Jobx;
 use Antares\Socket\Socket;
-use Antares\Support\Arr;
+use Antares\Foundation\Arr;
 
 class AsyncJob
 {
