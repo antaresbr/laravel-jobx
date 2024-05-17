@@ -7,7 +7,7 @@ return [
 
     'date_format' => env('JOBX_DATE_FORMAT', 'Y-m-d H:i:s.v'),
     'timestamp_precision' => 3,
-
+    
     'route' => [
         'prefix' => [
             'web' => env('JOBX_ROUTE_PREFIX_WEB', 'jobx'),
