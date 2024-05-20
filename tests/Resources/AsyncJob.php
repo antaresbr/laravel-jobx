@@ -1,9 +1,11 @@
 <?php
-namespace Antares\Jobx\Tests;
+namespace Antares\Jobx\Tests\Resources;
 
 use Antares\Jobx\Jobx;
 use Antares\Socket\Socket;
 use Antares\Foundation\Arr;
+use Illuminate\Foundation\Auth\User;
+use Illuminate\Support\Facades\Auth;
 
 class AsyncJob
 {
@@ -36,8 +38,9 @@ class AsyncJob
 
     public static function make($options)
     {
+        Auth::user() or Auth::login(User::findOrFail(1));
         return Jobx::dispatchFomOptions(array_merge_recursive([
-            'user' => 1,
+            'user' => Auth::user()->id,
             'class' => static::class,
             'method' => 'doAction',
             'params' => [

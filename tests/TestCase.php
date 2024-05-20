@@ -22,11 +22,6 @@ class TestCase extends OrchestraTestCase
         ];
     }
 
-    protected function setUp(): void
-    {
-        parent::setUp();
-    }
-
     /**
      * Define environment setup.
      *
@@ -36,6 +31,25 @@ class TestCase extends OrchestraTestCase
     protected function getEnvironmentSetUp($app)
     {
         $_ENV['APP_ENV_ID'] = $_ENV['APP_ENV'] ?? 'testing';
+
+        $app['config']->set('database.default', 'testing');
+        $app['config']->set('database.connections.testing', [
+            'driver' => 'sqlite',
+            'database' => ':memory:',
+            'prefix' => ''
+        ]);
+    }
+
+    /**
+     * Setup the test environment.
+     *
+     * @return void
+     */
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->loadLaravelMigrations(['--database' => 'testing']);
     }
 
     protected $filesToCelanup = [];

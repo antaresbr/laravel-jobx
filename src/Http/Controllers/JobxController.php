@@ -19,7 +19,6 @@ class JobxController extends Controller
             return JsonResponse::error(JobxHttpErrors::error(JobxHttpErrors::NO_USER_IN_REQUEST));
         }
 
-        //$dbjobs = JobxModel::where('user_id', $user->id)->where('created_at', '>=', Carbon::now()->subDays(config('jobx.ttl')))->get();
         $dbjobs = JobxModel::where('user_id', $user->id)->orderBy('id')->get();
 
         $data = [];
@@ -79,8 +78,13 @@ class JobxController extends Controller
             return JsonResponse::error(JobxHttpErrors::error(JobxHttpErrors::JOB_IDS_PARAMETER_INVALID), null, ['job_ids' => $job_ids]);
         }
 
+        $ids = [];
         $data = [];
         foreach($job_ids as $job_id) {
+            if (in_array($job_id, $ids)) {
+                continue;
+            }
+            $ids[] = $job_id;
             $socket = Socket::createFromId($job_id);
             if (!is_null($socket) and $socket->get('user') == $user->id) {
                 array_push($data, $socket->data());
