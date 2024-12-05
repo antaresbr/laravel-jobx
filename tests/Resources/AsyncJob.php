@@ -28,6 +28,9 @@ class AsyncJob
         Socket::socketProgress($socket, true, $steps);
         for ($i = 1; $i <= $steps; $i++) {
             $monitor[] = "  step ..{$i}..";
+            if (Socket::socketIsCanceled($socket)) {
+                return;
+            }
             Socket::socketProgressIncrease($socket);
         }
         $monitor[] = '.end()';

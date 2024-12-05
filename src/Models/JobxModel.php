@@ -62,7 +62,7 @@ class JobxModel extends Model
     }
 
     /**
-     * Synchronize model data with socket
+     * Synchronize data model with socket
      *
      * @param \Antares\Socket\Socket $socket
      * @param bool $save
@@ -77,7 +77,7 @@ class JobxModel extends Model
             $this->job_id = $socket->get('id');
             $this->user_id = $socket->get('user');
             $this->status = $socket->get('status');
-            $this->status = $socket->get('status');
+            $this->seen = $socket->get('seen');
             $this->created_at = $socket->get('created');
             if ($save and $this->isDirty()) {
                 $this->save();
@@ -98,11 +98,12 @@ class JobxModel extends Model
             return null;
         }
 
+        /** @var static */
         $instance = static::where('job_id', $socket->get('id'))->first();
         if (!$instance) {
             $instance = new static();
         }
-        $instance->syncWithSocket($socket)->save();
+        $instance->syncWithSocket($socket);
 
         return $instance;
     }

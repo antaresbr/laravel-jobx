@@ -27,4 +27,6 @@ Route::middleware('auth')->group(function () {
     Route::get('/get-from-db', 'JobxController@getFromDB');
     Route::get('/get-item/{job_id}', 'JobxController@getItem');
     Route::post('/get-list', 'JobxController@getList');
+    Route::get('/see/{job_id}', 'JobxController@see');
+    Route::get('/cancel/{job_id}', 'JobxController@cancel');
 });

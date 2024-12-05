@@ -161,9 +161,7 @@ class Jobx implements ShouldQueue
      */
     public static function getDispatchedJob(PendingDispatch $pd)
     {
-        $pdm = (array) $pd;
-        $key = chr(0) . '*' . chr(0) . 'job';
-        return isset($pdm[$key]) ? $pdm[$key] : null;
+        return ai_foundation_property_value($pd, 'job');
     }
 
     /**
@@ -188,13 +186,15 @@ class Jobx implements ShouldQueue
     /**
      * Create a json response from job
      *
-     * @param static|array|null $job
+     * @param static|array|null $aJob
      * @return \Antares\Http\JsonResponse
      */
-    public static function jsonResponseFromJob($job)
+    public static function jsonResponseFromJob($aJob)
     {
-        if (is_array($job)) {
-            $job = static::dispatchFomOptions($job);
+        /** @var static */
+        $job = $aJob;
+        if (is_array($aJob)) {
+            $job = static::dispatchFomOptions($aJob);
         }
         if (!empty($job->get('socket'))) {
             return JsonResponse::successful(['socket' => $job->get('socket')], trans('jobx::messages.job_successfully_scheduled'));

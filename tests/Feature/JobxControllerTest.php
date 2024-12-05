@@ -3,6 +3,7 @@ namespace Antares\Jobx\Tests\Feature;
 
 use Antares\Jobx\Http\JobxHttpErrors;
 use Antares\Jobx\Jobx;
+use Antares\Jobx\Models\JobxModel;
 use Antares\Jobx\Tests\Resources\Traits\JobxRefreshTrait;
 use Antares\Jobx\Tests\Resources\Traits\JobxSupportTrait;
 use Antares\Jobx\Tests\TestCase;
@@ -21,7 +22,7 @@ class JobxControllerTest extends TestCase
 
     private function localCreateAsyncJobx(array &$jobs, array &$sockets, int $count = 1)
     {
-        if ($count <= 1) {
+        if ($count < 1) {
             return;
         }
 
@@ -245,5 +246,55 @@ class JobxControllerTest extends TestCase
             'undefined' => $undefined,
             'other' => $other,
         ], $this->statJobs($json['data']));
+    }
+
+    /** @test */
+    public function see()
+    {
+        $this->refreshDatabaseAndQueue($this->getQueueConnection(), $this->getQueueName());
+
+        $jobs = [];
+        $sockets = [];
+    
+        $this->localCreateAsyncJobx($jobs, $sockets);
+
+        /** @var Socket */
+        $socket = array_shift($sockets);
+        $this->assertFalse($socket->get('seen'));
+
+        $json = $this->jobxGet("/see/{$socket->get('id')}");
+        $this->assertIsArray($json['data']);
+        $this->assertEquals($socket->get('id'), $json['data']['id']);
+        $this->assertTrue($json['data']['seen']);
+    
+        $dbJob = JobxModel::where('job_id', $socket->get('id'))->first();
+        $this->assertInstanceOf(JobxModel::class, $dbJob);
+        $this->assertEquals($dbJob->job_id, $json['data']['id']);
+        $this->assertEquals(filter_var($dbJob->seen, FILTER_VALIDATE_BOOLEAN), $json['data']['seen']);
+    }
+
+    /** @test */
+    public function cancel()
+    {
+        $this->refreshDatabaseAndQueue($this->getQueueConnection(), $this->getQueueName());
+
+        $jobs = [];
+        $sockets = [];
+    
+        $this->localCreateAsyncJobx($jobs, $sockets);
+
+        /** @var Socket */
+        $socket = array_shift($sockets);
+        $this->assertNotEquals($socket->get('status'), 'canceled');
+        
+        $json = $this->jobxGet("/cancel/{$socket->get('id')}");
+        $this->assertIsArray($json['data']);
+        $this->assertEquals($socket->get('id'), $json['data']['id']);
+        $this->assertEquals($json['data']['status'], 'canceled');
+    
+        $dbJob = JobxModel::where('job_id', $socket->get('id'))->first();
+        $this->assertInstanceOf(JobxModel::class, $dbJob);
+        $this->assertEquals($dbJob->job_id, $json['data']['id']);
+        $this->assertEquals($dbJob->status, $json['data']['status']);
     }
 }
