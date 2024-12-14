@@ -6,6 +6,7 @@ use Antares\Jobx\Http\JobxHttpErrors;
 use Antares\Jobx\Models\JobxModel;
 use Antares\Socket\Socket;
 use Antares\Foundation\Arr;
+use Antares\Foundation\Obj;
 use Antares\Foundation\Options\Options;
 use DateTime;
 use Illuminate\Bus\Queueable;
@@ -161,7 +162,7 @@ class Jobx implements ShouldQueue
      */
     public static function getDispatchedJob(PendingDispatch $pd)
     {
-        return ai_foundation_property_value($pd, 'job');
+        return Obj::get($pd, 'job');
     }
 
     /**
