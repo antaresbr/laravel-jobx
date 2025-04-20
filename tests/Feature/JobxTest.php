@@ -7,13 +7,14 @@ use Antares\Jobx\Tests\Resources\Traits\JobxRefreshTrait;
 use Antares\Jobx\Tests\Resources\Traits\JobxSupportTrait;
 use Antares\Jobx\Tests\TestCase;
 use Antares\Socket\Socket;
+use PHPUnit\Framework\Attributes\Test;
 
 class JobxTest extends TestCase
 {
     use JobxRefreshTrait;
     use JobxSupportTrait;
 
-    /** @test */
+    #[Test]
     public function dispath_async_job()
     {
         $this->refreshDatabaseAndQueue($this->getQueueConnection(), $this->getQueueName());

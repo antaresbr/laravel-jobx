@@ -12,6 +12,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Testing\TestResponse;
+use PHPUnit\Framework\Attributes\Test;
 
 use function PHPUnit\Framework\assertCount;
 
@@ -83,7 +84,7 @@ class JobxControllerTest extends TestCase
         ])->assertExitCode(0);
     }
 
-    /** @test */
+    #[Test]
     public function get_item()
     {
         $this->refreshDatabaseAndQueue($this->getQueueConnection(), $this->getQueueName());
@@ -105,7 +106,7 @@ class JobxControllerTest extends TestCase
         }
     }
 
-    /** @test */
+    #[Test]
     public function get_list()
     {
         $this->refreshDatabaseAndQueue($this->getQueueConnection(), $this->getQueueName());
@@ -187,7 +188,7 @@ class JobxControllerTest extends TestCase
         return $stats;
     }
 
-    /** @test */
+    #[Test]
     public function get_from_db()
     {
         $this->refreshDatabaseAndQueue($this->getQueueConnection(), $this->getQueueName());
@@ -236,10 +237,13 @@ class JobxControllerTest extends TestCase
         $outdated_pks = [13, 14];
         $outdated_at = Carbon::now()->subDays(config('jobx.ttl') + 1);
         $outdated = DB::table('jobx')->whereIn('id', $outdated_pks)->update(['created_at' => $outdated_at]);
+        $this->assertEquals(count($outdated_pks), $outdated);
 
-        $json = $this->jobxGet("/get-from-db");
+        $json = $this->jobxGet("/get-from-db?debug=1");
         $this->assertIsArray($json);
         $this->assertNotEquals($jobs_data, $json['data']);
+        $this->assertEquals($numJobs - count($outdated_pks), count($json['data']));
+
         $this->assertEquals([
             'queued' => $numJobs - ($finished + $undefined + $other + $outdated),
             'finished' => $finished,
@@ -248,7 +252,7 @@ class JobxControllerTest extends TestCase
         ], $this->statJobs($json['data']));
     }
 
-    /** @test */
+    #[Test]
     public function see()
     {
         $this->refreshDatabaseAndQueue($this->getQueueConnection(), $this->getQueueName());
@@ -273,7 +277,7 @@ class JobxControllerTest extends TestCase
         $this->assertEquals(filter_var($dbJob->seen, FILTER_VALIDATE_BOOLEAN), $json['data']['seen']);
     }
 
-    /** @test */
+    #[Test]
     public function cancel()
     {
         $this->refreshDatabaseAndQueue($this->getQueueConnection(), $this->getQueueName());
