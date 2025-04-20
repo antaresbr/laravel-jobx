@@ -60,7 +60,7 @@ class JobxController extends Controller
 
         $data = [];
         foreach ($dbjobs as $dbjob) {
-            $age = Carbon::now()->diffInDays($dbjob->created_at);
+            $age = Carbon::now()->diffInDays($dbjob->created_at, true);
             if ($age > config('jobx.ttl')) {
                 $dbjob->delete();
                 continue;
