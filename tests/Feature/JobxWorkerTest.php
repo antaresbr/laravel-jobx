@@ -5,13 +5,14 @@ use Antares\Jobx\Tests\Resources\Traits\JobxRefreshTrait;
 use Antares\Jobx\Tests\Resources\Traits\JobxSupportTrait;
 use Antares\Jobx\Tests\TestCase;
 use Illuminate\Support\Facades\Queue;
+use PHPUnit\Framework\Attributes\Test;
 
 class JobxWorkerTest extends TestCase
 {
     use JobxRefreshTrait;
     use JobxSupportTrait;
 
-    /** @test */
+    #[Test]
     public function worker_tests()
     {
         $this->refreshDatabaseAndQueue($this->getQueueConnection(), $this->getQueueName());

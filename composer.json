@@ -16,12 +16,12 @@
     ],
     "license": "MIT",
     "require": {
-        "php": "^8.1",
+        "php": "^8.2",
         "antaresbr/foundation": "*",
-        "antaresbr/laravel-http": "^10",
-        "antaresbr/laravel-multienv": "^10",
-        "antaresbr/laravel-socket": "^10",
-        "laravel/framework": "^10",
+        "antaresbr/laravel-http": "^11",
+        "antaresbr/laravel-multienv": "^11",
+        "antaresbr/laravel-socket": "^11",
+        "laravel/framework": "^11",
         "nesbot/carbon": "*",
         "symfony/process": "*"
     },
@@ -34,7 +34,7 @@
         }
     },
     "require-dev": {
-        "orchestra/testbench": "^8"
+        "orchestra/testbench": "^9"
     },
     "autoload-dev": {
         "psr-4": {
