@@ -18,13 +18,11 @@
     "require": {
         "php": "^8",
         "antaresbr/foundation": "*",
-        "antaresbr/laravel-http": "^8",
-        "antaresbr/laravel-multienv": "^8",
-        "antaresbr/laravel-socket": "^8",
-        "doctrine/dbal": "^2.10",
-        "laravel/framework": "^8",
+        "antaresbr/laravel-http": "^9",
+        "antaresbr/laravel-multienv": "^9",
+        "antaresbr/laravel-socket": "^9",
+        "laravel/framework": "^9",
         "nesbot/carbon": "*",
-        "predis/predis": "^2.2",
         "symfony/process": "*"
     },
     "autoload": {
@@ -36,7 +34,7 @@
         }
     },
     "require-dev": {
-        "orchestra/testbench": "^6"
+        "orchestra/testbench": "^7"
     },
     "autoload-dev": {
         "psr-4": {
