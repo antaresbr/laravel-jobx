@@ -10,11 +10,8 @@ use Antares\Jobx\Tests\TestCase;
 use Antares\Socket\Socket;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Queue;
 use Illuminate\Testing\TestResponse;
 use PHPUnit\Framework\Attributes\Test;
-
-use function PHPUnit\Framework\assertCount;
 
 class JobxControllerTest extends TestCase
 {
@@ -243,7 +240,6 @@ class JobxControllerTest extends TestCase
         $this->assertIsArray($json);
         $this->assertNotEquals($jobs_data, $json['data']);
         $this->assertEquals($numJobs - count($outdated_pks), count($json['data']));
-
         $this->assertEquals([
             'queued' => $numJobs - ($finished + $undefined + $other + $outdated),
             'finished' => $finished,
