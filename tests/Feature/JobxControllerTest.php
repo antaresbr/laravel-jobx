@@ -236,7 +236,7 @@ class JobxControllerTest extends TestCase
         $outdated = DB::table('jobx')->whereIn('id', $outdated_pks)->update(['created_at' => $outdated_at]);
         $this->assertEquals(count($outdated_pks), $outdated);
 
-        $json = $this->jobxGet("/get-from-db?debug=1");
+        $json = $this->jobxGet("/get-from-db");
         $this->assertIsArray($json);
         $this->assertNotEquals($jobs_data, $json['data']);
         $this->assertEquals($numJobs - count($outdated_pks), count($json['data']));
