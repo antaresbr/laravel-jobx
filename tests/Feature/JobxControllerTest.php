@@ -236,10 +236,12 @@ class JobxControllerTest extends TestCase
         $outdated_pks = [13, 14];
         $outdated_at = Carbon::now()->subDays(config('jobx.ttl') + 1);
         $outdated = DB::table('jobx')->whereIn('id', $outdated_pks)->update(['created_at' => $outdated_at]);
+        $this->assertEquals(count($outdated_pks), $outdated);
 
         $json = $this->jobxGet("/get-from-db");
         $this->assertIsArray($json);
         $this->assertNotEquals($jobs_data, $json['data']);
+        $this->assertEquals($numJobs - count($outdated_pks), count($json['data']));
         $this->assertEquals([
             'queued' => $numJobs - ($finished + $undefined + $other + $outdated),
             'finished' => $finished,
