@@ -10,10 +10,7 @@ use Antares\Jobx\Tests\TestCase;
 use Antares\Socket\Socket;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Queue;
 use Illuminate\Testing\TestResponse;
-
-use function PHPUnit\Framework\assertCount;
 
 class JobxControllerTest extends TestCase
 {
@@ -84,7 +81,7 @@ class JobxControllerTest extends TestCase
     }
 
     /** @test */
-    public function get_item()
+    public function test_get_item()
     {
         $this->refreshDatabaseAndQueue($this->getQueueConnection(), $this->getQueueName());
 
@@ -106,7 +103,7 @@ class JobxControllerTest extends TestCase
     }
 
     /** @test */
-    public function get_list()
+    public function test_get_list()
     {
         $this->refreshDatabaseAndQueue($this->getQueueConnection(), $this->getQueueName());
 
@@ -161,22 +158,22 @@ class JobxControllerTest extends TestCase
     private function statJobs($data): array
     {
         $stats = [
-            'queued' => 0,
-            'finished' => 0,
-            'undefined' => 0,
+            Socket::STATUS_UNDEFINED => 0,
+            Socket::STATUS_QUEUED => 0,
+            Socket::STATUS_SUCCESSFUL => 0,
             'other' => 0,
         ];
 
         foreach ($data as $item) {
             switch ($item['status']) {
-                case 'queued':
-                    $stats['queued']++;
+                case Socket::STATUS_UNDEFINED:
+                    $stats[Socket::STATUS_UNDEFINED]++;
                     break;
-                case 'finished':
-                    $stats['finished']++;
+                case Socket::STATUS_QUEUED:
+                    $stats[Socket::STATUS_QUEUED]++;
                     break;
-                case 'undefined':
-                    $stats['undefined']++;
+                case Socket::STATUS_SUCCESSFUL:
+                    $stats[Socket::STATUS_SUCCESSFUL]++;
                     break;
                 default:
                     $stats['other']++;
@@ -188,7 +185,7 @@ class JobxControllerTest extends TestCase
     }
 
     /** @test */
-    public function get_from_db()
+    public function test_get_from_db()
     {
         $this->refreshDatabaseAndQueue($this->getQueueConnection(), $this->getQueueName());
 
@@ -209,17 +206,17 @@ class JobxControllerTest extends TestCase
         $this->assertIsArray($json);
         $this->assertEquals($jobs_data, $json['data']);
         $this->assertEquals([
-            'queued' => $numJobs,
-            'finished' => 0,
-            'undefined' => 0,
+            Socket::STATUS_UNDEFINED => 0,
+            Socket::STATUS_QUEUED => $numJobs,
+            Socket::STATUS_SUCCESSFUL => 0,
             'other' => 0,
         ], $this->statJobs($json['data']));
 
-        $finished = 3;
-        $this->workOnQueue($finished);
+        $successful = 3;
+        $this->workOnQueue($successful);
 
         $undefined_keys = [4, 6, 7];
-        $undefined = $this->setSocketsStatus($sockets, $undefined_keys, 'undefined');
+        $undefined = $this->setSocketsStatus($sockets, $undefined_keys, Socket::STATUS_UNDEFINED);
         $other_keys = [9, 10];
         $other = $this->setSocketsStatus($sockets, $other_keys, 'n/a');
         
@@ -227,9 +224,9 @@ class JobxControllerTest extends TestCase
         $this->assertIsArray($json);
         $this->assertNotEquals($jobs_data, $json['data']);
         $this->assertEquals([
-            'queued' => $numJobs - ($finished + $undefined + $other),
-            'finished' => $finished,
-            'undefined' => $undefined,
+            Socket::STATUS_UNDEFINED => $undefined,
+            Socket::STATUS_QUEUED => $numJobs - ($successful + $undefined + $other),
+            Socket::STATUS_SUCCESSFUL => $successful,
             'other' => $other,
         ], $this->statJobs($json['data']));
 
@@ -243,15 +240,15 @@ class JobxControllerTest extends TestCase
         $this->assertNotEquals($jobs_data, $json['data']);
         $this->assertEquals($numJobs - count($outdated_pks), count($json['data']));
         $this->assertEquals([
-            'queued' => $numJobs - ($finished + $undefined + $other + $outdated),
-            'finished' => $finished,
-            'undefined' => $undefined,
+            Socket::STATUS_UNDEFINED => $undefined,
+            Socket::STATUS_QUEUED => $numJobs - ($successful + $undefined + $other + $outdated),
+            Socket::STATUS_SUCCESSFUL => $successful,
             'other' => $other,
         ], $this->statJobs($json['data']));
     }
 
     /** @test */
-    public function see()
+    public function test_see()
     {
         $this->refreshDatabaseAndQueue($this->getQueueConnection(), $this->getQueueName());
 
@@ -276,7 +273,7 @@ class JobxControllerTest extends TestCase
     }
 
     /** @test */
-    public function cancel()
+    public function test_cancel()
     {
         $this->refreshDatabaseAndQueue($this->getQueueConnection(), $this->getQueueName());
 
@@ -287,16 +284,39 @@ class JobxControllerTest extends TestCase
 
         /** @var Socket */
         $socket = array_shift($sockets);
-        $this->assertNotEquals($socket->get('status'), 'canceled');
+        $this->assertNotEquals($socket->get('status'), Socket::STATUS_CANCELED);
         
         $json = $this->jobxGet("/cancel/{$socket->get('id')}");
         $this->assertIsArray($json['data']);
         $this->assertEquals($socket->get('id'), $json['data']['id']);
-        $this->assertEquals($json['data']['status'], 'canceled');
+        $this->assertEquals($json['data']['status'], Socket::STATUS_CANCELED);
     
         $dbJob = JobxModel::where('job_id', $socket->get('id'))->first();
         $this->assertInstanceOf(JobxModel::class, $dbJob);
         $this->assertEquals($dbJob->job_id, $json['data']['id']);
         $this->assertEquals($dbJob->status, $json['data']['status']);
+    }
+
+    /** @test */
+    public function test_delete()
+    {
+        $this->refreshDatabaseAndQueue($this->getQueueConnection(), $this->getQueueName());
+
+        $jobs = [];
+        $sockets = [];
+    
+        $this->localCreateAsyncJobx($jobs, $sockets);
+
+        /** @var Socket */
+        $socket = array_shift($sockets);
+        $this->assertNotEquals($socket->get('status'), Socket::STATUS_DELETED);
+        
+        $json = $this->jobxGet("/delete/{$socket->get('id')}");
+        $this->assertIsArray($json['data']);
+        $this->assertEquals($socket->get('id'), $json['data']['id']);
+        $this->assertEquals($json['data']['status'], Socket::STATUS_DELETED);
+    
+        $dbJob = JobxModel::where('job_id', $socket->get('id'))->first();
+        $this->assertNull($dbJob);
     }
 }

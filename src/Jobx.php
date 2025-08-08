@@ -17,6 +17,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Ramsey\Uuid\Uuid;
+use Throwable;
 
 class Jobx implements ShouldQueue
 {
@@ -135,14 +136,43 @@ class Jobx implements ShouldQueue
             $this->options['params']
         );
 
-        $o = new ($this->options['class']);
-        $socket->refresh()->status('running', true);
-        $dbjob->syncWithSocket($socket);
-        $o->{$this->options['method']}($params);
-
+        $error = null;
+        try {
+            if ($socket->get('message') == trans('jobx::messages.queued')) {
+                $socket->set('message', trans('jobx::messages.running'));
+            }
+            $socket->status('running', true);
+            $dbjob->syncWithSocket($socket);
+            $o = new ($this->options['class']);
+            $o->{$this->options['method']}($params);
+        } catch (Throwable $e) {
+            $error = $e;
+        }
+        
+        $saveSocket = false;
         $socket->refresh();
-        if (!$socket->get('finished')) {
-            $socket->finish(true);
+        if ($error) {
+            $message = null;
+            if (env('APP_DEBUG')) {
+                $message = array_merge([$error->getMessage()], $error->getTrace());
+            }
+            else {
+                $message = trans('jobx::errors.running_error');
+            }
+            $socket->fail($message);
+            $saveSocket = true;
+        } else {
+            if (!$socket->get('resul.message')) {
+                $socket->set('result.message', trans('jobx::messages.job_successfully_completed'));
+                $saveSocket = true;
+            }
+        }
+        if (!$socket->isActive()) {
+            $socket->successful();
+            $saveSocket = true;
+        }
+        if ($saveSocket) {
+            $socket->saveToFile();
         }
         $dbjob->syncWithSocket($socket);
 
@@ -175,7 +205,27 @@ class Jobx implements ShouldQueue
     {
         $job = static::getDispatchedJob(static::dispatch($options));
         if ($job) {
-            $socket = Socket::socketStatus(Socket::createFromId($job->get('socket')), 'queued');
+            $title = Arr::get($options, 'title');
+            if ($title === null) {
+                $title = Arr::get($options, 'params.title');
+            }
+            if ($title === null) {
+                $title = Arr::get($options, 'class') . '::' . Arr::get($options, 'method') . '()';
+            }
+
+            $message = Arr::get($options, 'message');
+            if ($message === null) {
+                $message = Arr::get($options, 'params.message');
+            }
+            if ($message === null) {
+                $message = trans('jobx::messages.queued');
+            }
+
+            $socket = Socket::createFromId($job->get('socket'));
+            $socket->set('title', $title);
+            $socket->set('message', $message);
+            $socket->set('status', Socket::STATUS_QUEUED, true);
+
             $dbjob = JobxModel::where('job_id', $socket->get('id'))->first();
             if ($dbjob) {
                 $dbjob->syncWithSocket($socket);

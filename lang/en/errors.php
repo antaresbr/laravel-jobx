@@ -7,4 +7,5 @@ return [
     'job_not_found' => "Job not found",
     'job_ids_parameter_not_provided' => "'job_ids' parameter not provided",
     'job_ids_parameter_invalid' => "Invalid 'job_ids' parameter",
+    'running_error' => "Running error",
 ];

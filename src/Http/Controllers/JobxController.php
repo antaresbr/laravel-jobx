@@ -67,9 +67,10 @@ class JobxController extends Controller
             }
 
             $socket = Socket::createFromId($dbjob->job_id);
-            $data[] = $socket->data();
-
-            $dbjob->syncWithSocket($socket);
+            if ($socket) {
+                $data[] = $socket->data();
+                $dbjob->syncWithSocket($socket);
+            }
         }
 
         return JsonResponse::successful($data);
@@ -125,7 +126,7 @@ class JobxController extends Controller
             return $socket;
         }
 
-        $socket->set('seen', true);
+        $socket->set('seen', true, true);
         JobxModel::fromSocket($socket);
 
         return JsonResponse::successful($socket->data());
@@ -141,6 +142,23 @@ class JobxController extends Controller
 
         $socket->cancel(true);
         JobxModel::fromSocket($socket);
+
+        return JsonResponse::successful($socket->data());
+    }
+
+
+    public function delete(Request $request, $job_id)
+    {
+        $socket = $this->getSocket($request, $job_id);
+        if (is_a($socket, Response::class)) {
+            return $socket;
+        }
+
+        $socket->delete(true);
+        $jobx = JobxModel::fromSocket($socket);
+        if ($jobx) {
+            $jobx->delete();
+        }
 
         return JsonResponse::successful($socket->data());
     }

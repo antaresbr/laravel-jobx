@@ -35,8 +35,7 @@ class AsyncJob
         }
         $monitor[] = '.end()';
 
-        Socket::socketMessage($socket, 'Asynchronous process finished');
-        Socket::socketFinish($socket, 'Process completed successfully!', null, ['monitor' => $monitor]);
+        Socket::socketSuccessful($socket, 'Process completed successfully!', ['monitor' => $monitor], null);
     }
 
     public static function make($options)

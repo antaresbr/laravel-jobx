@@ -1,9 +1,10 @@
 <?php
 namespace Antares\Jobx\Console\Commands;
 
-use Antares\Jobx\Jobx;
 use Antares\Foundation\CurrentEnv;
+use Antares\Jobx\Jobx;
 use Antares\Multienv\BootstrapEnv;
+use Antares\Socket\Socket;
 use Exception;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
@@ -14,6 +15,9 @@ use Symfony\Component\Process\Exception\ProcessFailedException;
 
 class JobxWorker extends Command
 {
+    const STATUS_STARTED = 'started';
+    const STATUS_FINISHED = 'finished';
+    
     /**
      * The name and signature of the console command.
      *
@@ -98,7 +102,7 @@ class JobxWorker extends Command
 
         Log::info(json_encode([
             'jobx-worker' => $this->worker,
-            'status' => 'started',
+            'status' => self::STATUS_STARTED,
             'params' => [
                 'connection' => $this->argument('connection'),
                 'queue' => $this->option('queue'),
@@ -142,7 +146,7 @@ class JobxWorker extends Command
 
         Log::info(json_encode([
             'jobx-worker' => $this->worker,
-            'status' => 'finished',
+            'status' => self::STATUS_FINISHED,
             'emptyLoop' => $emptyLoop,
             'jobs' => $jobs,
         ]));
