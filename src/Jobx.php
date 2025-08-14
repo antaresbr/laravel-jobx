@@ -11,10 +11,12 @@ use Antares\Foundation\Options\Options;
 use DateTime;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Auth\User;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Foundation\Bus\PendingDispatch;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Ramsey\Uuid\Uuid;
 use Throwable;
@@ -75,7 +77,7 @@ class Jobx implements ShouldQueue
             'connection' => ['type' => 'string', 'default' => ''],
             'queue' => ['type' => 'string', 'default' => ''],
             'socket' => ['type' => 'string', 'default' => ''],
-            'timeout' => ['type' => 'integer', 'default' => (int)config('queue.job_timeout', 60)],
+            'timeout' => ['type' => 'integer', 'default' => (int)config('queue.job_timeout', 300)],
         ])->validate();
 
         !empty($opt->id) or ($opt->id = Uuid::uuid4()->toString());
@@ -108,7 +110,7 @@ class Jobx implements ShouldQueue
     public function handle()
     {
         $started_at = microtime(true);
-        Log::info(json_encode([
+        $jobInfos = [
             'job-id' => $this->options['id'],
             'env' => $this->options['env'],
             'connection' => $this->options['connection'],
@@ -117,11 +119,18 @@ class Jobx implements ShouldQueue
             'class' => $this->options['class'],
             'method' => $this->options['method'],
             'user' => $this->options['user'],
-            'started_at' => DateTime::createFromFormat('U.u', $started_at)->format('m-d-Y H:i:s.u'),
-        ]));
+        ];
+        Log::info(json_encode(array_merge(
+            $jobInfos,
+            ['started_at' => DateTime::createFromFormat('U.u', $started_at)->format('m-d-Y H:i:s.u')]
+        )));
 
         $socket = Socket::createFromId($this->options['socket'])->status('handling', true);
         $dbjob = JobxModel::fromSocket($socket);
+        $jobUser = $dbjob->user_id;
+        if (!is_null($jobUser)) {
+            Auth::setUser(User::find($jobUser));
+        }
 
         $params = array_merge(
             [
@@ -152,6 +161,14 @@ class Jobx implements ShouldQueue
         $saveSocket = false;
         $socket->refresh();
         if ($error) {
+            Log::error(json_encode(array_merge(
+                $jobInfos,
+                [
+                    'params' => $params,
+                    'message' => array_merge([$error->getMessage()], $error->getTrace()),
+                ]
+            )));
+
             $message = null;
             if (env('APP_DEBUG')) {
                 $message = array_merge([$error->getMessage()], $error->getTrace());

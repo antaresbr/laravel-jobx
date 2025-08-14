@@ -126,7 +126,7 @@ class JobxController extends Controller
             return $socket;
         }
 
-        $socket->set('seen', true, true);
+        $socket->see();
         JobxModel::fromSocket($socket);
 
         return JsonResponse::successful($socket->data());
@@ -140,7 +140,7 @@ class JobxController extends Controller
             return $socket;
         }
 
-        $socket->cancel(true);
+        $socket->cancel();
         JobxModel::fromSocket($socket);
 
         return JsonResponse::successful($socket->data());
@@ -154,7 +154,7 @@ class JobxController extends Controller
             return $socket;
         }
 
-        $socket->delete(true);
+        $socket->delete();
         $jobx = JobxModel::fromSocket($socket);
         if ($jobx) {
             $jobx->delete();
