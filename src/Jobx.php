@@ -91,7 +91,7 @@ class Jobx implements ShouldQueue
         $socket = Socket::make([
             'prefix' => 'job',
             'user' => $opt->user,
-            'status' => 'created',
+            'status' => Socket::STATUS_NEW,
         ]);
         $opt->socket = $socket->get('id');
 
