@@ -1,4 +1,5 @@
 <?php
+
 namespace Antares\Jobx\Providers;
 
 use Carbon\Carbon;
@@ -19,6 +20,9 @@ class JobxServiceProvider extends ServiceProvider
         $this->mergeConfigFile('jobx');
 
         $this->commands([
+            \Antares\Jobx\Console\Commands\JobxFailReserved::class,
+            \Antares\Jobx\Console\Commands\JobxListReserved::class,
+            \Antares\Jobx\Console\Commands\JobxSyncWithSocket::class,
             \Antares\Jobx\Console\Commands\JobxWorker::class,
         ]);
     }
@@ -47,7 +51,7 @@ class JobxServiceProvider extends ServiceProvider
     {
         $targetFile = ai_jobx_path("config/{$name}.php");
 
-        if (is_file($targetFile) and !Config::has($name)) {
+        if (is_file($targetFile) and ! Config::has($name)) {
             $this->mergeConfigFrom($targetFile, $name);
         }
     }
@@ -78,6 +82,7 @@ class JobxServiceProvider extends ServiceProvider
     {
         Queue::createPayloadUsing(function ($connection, $queue, $payload) {
             $payload['created_at'] = Carbon::now()->format('Y-m-d H:i:s.u');
+
             return $payload;
         });
     }
