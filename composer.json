@@ -50,5 +50,10 @@
                 "Antares\\Jobx\\Providers\\JobxServiceProvider"
             ]
         }
+    },
+    "config": {
+        "audit": {
+            "block-insecure": false
+        }
     }
 }

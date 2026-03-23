@@ -1,13 +1,14 @@
 <?php
+
 namespace Antares\Jobx;
 
+use Antares\Foundation\Arr;
+use Antares\Foundation\Obj;
+use Antares\Foundation\Options\Options;
 use Antares\Http\JsonResponse;
 use Antares\Jobx\Http\JobxHttpErrors;
 use Antares\Jobx\Models\JobxModel;
 use Antares\Socket\Socket;
-use Antares\Foundation\Arr;
-use Antares\Foundation\Obj;
-use Antares\Foundation\Options\Options;
 use DateTime;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -23,7 +24,10 @@ use Throwable;
 
 class Jobx implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use Dispatchable;
+    use InteractsWithQueue;
+    use Queueable;
+    use SerializesModels;
 
     /**
      * The number of seconds the job can run before timing out.
@@ -57,6 +61,7 @@ class Jobx implements ShouldQueue
         if (is_null($key)) {
             return $this->options;
         }
+
         return Arr::get($this->options, $key);
     }
 
@@ -80,12 +85,12 @@ class Jobx implements ShouldQueue
             'timeout' => ['type' => 'integer', 'default' => (int)config('queue.job_timeout', 300)],
         ])->validate();
 
-        !empty($opt->id) or ($opt->id = Uuid::uuid4()->toString());
+        ! empty($opt->id) or ($opt->id = Uuid::uuid4()->toString());
 
-        !empty($opt->connection) or ($opt->connection = config('queue.default'));
+        ! empty($opt->connection) or ($opt->connection = config('queue.default'));
         $this->onConnection($opt->connection);
 
-        !empty($opt->queue) or ($opt->queue = config('queue.connections.'.$opt->connection.'.queue'));
+        ! empty($opt->queue) or ($opt->queue = config('queue.connections.'.$opt->connection.'.queue'));
         $this->onQueue($opt->queue);
 
         $socket = Socket::make([
@@ -125,10 +130,19 @@ class Jobx implements ShouldQueue
             ['started_at' => DateTime::createFromFormat('U.u', $started_at)->format('m-d-Y H:i:s.u')]
         )));
 
-        $socket = Socket::createFromId($this->options['socket'])->status('handling', true);
+        $socket = Socket::createFromId($this->options['socket']);
+        if (! $socket) {
+            Log::error(json_encode(array_merge(
+                $jobInfos,
+                ['fail' => 'Socket not found']
+            )));
+
+            return;
+        }
+        $socket = $socket->status(Socket::STATUS_READYTORUN, true);
         $dbjob = JobxModel::fromSocket($socket);
         $jobUser = $dbjob->user_id;
-        if (!is_null($jobUser)) {
+        if (! is_null($jobUser)) {
             Auth::setUser(User::find($jobUser));
         }
 
@@ -140,14 +154,15 @@ class Jobx implements ShouldQueue
                     'queue' => $this->options['queue'],
                     'socket' => $this->options['socket'],
                     'user' => $this->options['user'],
-                ]
+                ],
             ],
             $this->options['params']
         );
 
         $error = null;
+
         try {
-            if ($socket->get('message') == trans('jobx::messages.queued')) {
+            if (in_array($socket->get('message'), [trans('jobx::messages.queued'), trans('jobx::messages.ready_to_run')])) {
                 $socket->set('message', trans('jobx::messages.running'));
             }
             $socket->status('running', true);
@@ -157,7 +172,7 @@ class Jobx implements ShouldQueue
         } catch (Throwable $e) {
             $error = $e;
         }
-        
+
         $saveSocket = false;
         $socket->refresh();
         if ($error) {
@@ -172,19 +187,18 @@ class Jobx implements ShouldQueue
             $message = null;
             if (env('APP_DEBUG')) {
                 $message = array_merge([$error->getMessage()], $error->getTrace());
-            }
-            else {
+            } else {
                 $message = trans('jobx::errors.running_error');
             }
             $socket->fail($message);
             $saveSocket = true;
         } else {
-            if (!$socket->get('resul.message')) {
+            if (! $socket->get('resul.message')) {
                 $socket->set('result.message', trans('jobx::messages.job_successfully_completed'));
                 $saveSocket = true;
             }
         }
-        if (!$socket->isActive()) {
+        if (! $socket->isActive()) {
             $socket->successful();
             $saveSocket = true;
         }
@@ -248,6 +262,7 @@ class Jobx implements ShouldQueue
                 $dbjob->syncWithSocket($socket);
             }
         }
+
         return $job;
     }
 
@@ -264,7 +279,7 @@ class Jobx implements ShouldQueue
         if (is_array($aJob)) {
             $job = static::dispatchFomOptions($aJob);
         }
-        if (!empty($job->get('socket'))) {
+        if (! empty($job->get('socket'))) {
             return JsonResponse::successful(['socket' => $job->get('socket')], trans('jobx::messages.job_successfully_scheduled'));
         } else {
             return JsonResponse::error(JobxHttpErrors::FAIL_TO_SCHEDULE);
